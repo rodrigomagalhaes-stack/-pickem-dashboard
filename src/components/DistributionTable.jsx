@@ -10,11 +10,11 @@ export default function DistributionTable({ dist, winThreshold, totalUsers, priz
   const maxCount = Math.max(...dist.map((d) => d.count), 1)
   const hasPrize = !!prizeModel
 
-  // custo total do modelo selecionado
+  // custo total = soma dos prêmios fixos de cada faixa com ganhadores
   const custoTotal = hasPrize
     ? dist.reduce((sum, row) => {
         const prize = prizeModel.prizes[row.acertos]
-        return sum + (prize ? prize * row.count : 0)
+        return sum + (prize && row.count > 0 ? prize : 0)
       }, 0)
     : 0
 
@@ -74,7 +74,8 @@ export default function DistributionTable({ dist, winThreshold, totalUsers, priz
               const barPct = maxCount > 0 ? (row.count / maxCount) * 100 : 0
               const label = row.acertos === 1 ? '1 acerto' : `${row.acertos} acertos`
               const prize = hasPrize ? prizeModel.prizes[row.acertos] : null
-              const custoLinha = prize ? prize * row.count : null
+              // prize = custo total da faixa; por jogador = prize / count
+              const premioPorJogador = prize && row.count > 0 ? prize / row.count : null
 
               return (
                 <tr key={row.acertos} className={isWinner ? 'row-winner' : ''}>
@@ -96,13 +97,13 @@ export default function DistributionTable({ dist, winThreshold, totalUsers, priz
                   <td className="td-num">{row.count.toLocaleString('pt-BR')}</td>
                   <td className="td-pct">{pct}%</td>
                   {hasPrize && (
-                    <td className="td-num" style={{ color: prize ? '#e8e8e8' : '#444' }}>
-                      {prize ? fmtBRL(prize) : '–'}
+                    <td className="td-num" style={{ color: premioPorJogador ? '#e8e8e8' : '#444' }}>
+                      {premioPorJogador ? fmtBRL(premioPorJogador) : '–'}
                     </td>
                   )}
                   {hasPrize && (
-                    <td className="td-num" style={{ color: custoLinha ? '#19c37d' : '#444', fontWeight: custoLinha ? 600 : 400 }}>
-                      {custoLinha ? fmtBRL(custoLinha) : '–'}
+                    <td className="td-num" style={{ color: prize && row.count > 0 ? '#19c37d' : '#444', fontWeight: prize && row.count > 0 ? 600 : 400 }}>
+                      {prize && row.count > 0 ? fmtBRL(prize) : '–'}
                     </td>
                   )}
                   <td className="td-download">
