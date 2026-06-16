@@ -37,8 +37,8 @@ export function processRows(rawRows) {
     (r) => r['User Test']?.toLowerCase() !== 'true' && r['Restricted']?.toLowerCase() !== 'true'
   )
 
-  const totalEntradas = rawRows.length
   const uniqueUsers = [...new Set(rows.map((r) => r['User External ID']))].length
+  const totalEntradas = rows.length
 
   const noQuestions = rows.length > 0 ? Math.max(...rows.map((r) => parseInt(r['No. Questions']) || 8)) : 8
 
