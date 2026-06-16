@@ -95,16 +95,11 @@ export function useEvents() {
     return data || []
   }, [])
 
-  const loadConfig = useCallback(async (key) => {
-    if (!supabase) return null
-    const { data } = await supabase.from('pickem_config').select('valor').eq('id', key).single()
-    return data?.valor ?? null
-  }, [])
-
-  const saveConfig = useCallback(async (key, valor) => {
+  const updateEventPrizeModel = useCallback(async (id, prizeModel) => {
     if (!supabase) return
-    await supabase.from('pickem_config').upsert({ id: key, valor })
+    await supabase.from('pickem_eventos').update({ prize_model: prizeModel }).eq('id', id)
+    setEvents((prev) => prev.map((e) => e.id === id ? { ...e, prize_model: prizeModel } : e))
   }, [])
 
-  return { events, loading, connected, fetchEvents, saveEvent, deleteEvent, fetchEntries, loadConfig, saveConfig }
+  return { events, loading, connected, fetchEvents, saveEvent, deleteEvent, fetchEntries, updateEventPrizeModel }
 }

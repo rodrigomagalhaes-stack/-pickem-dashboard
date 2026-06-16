@@ -4,7 +4,7 @@ import { PRIZE_MODELS } from '../lib/prizeModels'
 import KPICards from './KPICards'
 import DistributionTable from './DistributionTable'
 
-export default function EventTab({ events, onSave, onDelete, onFetchEntries, onLoadConfig, onSaveConfig, highlightId }) {
+export default function EventTab({ events, onSave, onDelete, onFetchEntries, onUpdatePrizeModel, highlightId }) {
   const [parsed, setParsed] = useState(null)
   const [selectedId, setSelectedId] = useState(highlightId || '')
 
@@ -15,13 +15,15 @@ export default function EventTab({ events, onSave, onDelete, onFetchEntries, onL
   const [error, setError] = useState('')
   const [prizeModelKey, setPrizeModelKey] = useState('')
 
+  // Carrega o modelo do evento selecionado
   useEffect(() => {
-    onLoadConfig('prize_model').then((val) => { if (val) setPrizeModelKey(val) })
-  }, [onLoadConfig])
+    const ev = events.find((e) => e.id === selectedId)
+    setPrizeModelKey(ev?.prize_model || '')
+  }, [selectedId, events])
 
   function handlePrizeModel(key) {
     setPrizeModelKey(key)
-    onSaveConfig('prize_model', key)
+    if (selectedId) onUpdatePrizeModel(selectedId, key)
   }
   const fileRef = useRef()
 
