@@ -522,6 +522,29 @@ body {
   margin-bottom: 12px;
 }
 
+/* mini KPIs (recorrência) */
+.mini-kpi-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: center;
+}
+.mini-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.mini-kpi-val {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.1;
+}
+.mini-kpi-lbl {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 /* ── Responsive ── */
 @media (max-width: 700px) {
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }

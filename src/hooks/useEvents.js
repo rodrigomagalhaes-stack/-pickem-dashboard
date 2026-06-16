@@ -85,14 +85,38 @@ export function useEvents() {
 
   const fetchEntries = useCallback(async (eventoId, acertos = null) => {
     if (!supabase) throw new Error('Supabase não configurado')
-    let query = supabase
-      .from('pickem_entradas')
-      .select('user_external_id, acertos, status, premio, data_aposta')
-      .eq('evento_id', eventoId)
-    if (acertos != null) query = query.eq('acertos', acertos)
-    const { data, error } = await query
-    if (error) throw error
-    return data || []
+    const PAGE = 1000
+    const out = []
+    for (let from = 0; ; from += PAGE) {
+      let query = supabase
+        .from('pickem_entradas')
+        .select('user_external_id, acertos, status, premio, data_aposta')
+        .eq('evento_id', eventoId)
+        .range(from, from + PAGE - 1)
+      if (acertos != null) query = query.eq('acertos', acertos)
+      const { data, error } = await query
+      if (error) throw error
+      out.push(...(data || []))
+      if (!data || data.length < PAGE) break
+    }
+    return out
+  }, [])
+
+  // Busca leve de (user, evento) de TODOS os eventos — para análise de recorrência
+  const fetchAllUserEvents = useCallback(async () => {
+    if (!supabase) throw new Error('Supabase não configurado')
+    const PAGE = 1000
+    const out = []
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await supabase
+        .from('pickem_entradas')
+        .select('user_external_id, evento_id, status')
+        .range(from, from + PAGE - 1)
+      if (error) throw error
+      out.push(...(data || []))
+      if (!data || data.length < PAGE) break
+    }
+    return out
   }, [])
 
   const updateEventPrizeModel = useCallback(async (id, prizeModel) => {
@@ -101,5 +125,5 @@ export function useEvents() {
     setEvents((prev) => prev.map((e) => e.id === id ? { ...e, prize_model: prizeModel } : e))
   }, [])
 
-  return { events, loading, connected, fetchEvents, saveEvent, deleteEvent, fetchEntries, updateEventPrizeModel }
+  return { events, loading, connected, fetchEvents, saveEvent, deleteEvent, fetchEntries, fetchAllUserEvents, updateEventPrizeModel }
 }

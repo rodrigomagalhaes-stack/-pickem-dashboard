@@ -1,29 +1,67 @@
+import { useState, useEffect } from 'react'
 import { PRIZE_MODELS } from '../lib/prizeModels'
+import { costAnalysis, recurrenceAnalysis } from '../lib/analytics'
+import { downloadCSV } from '../lib/downloadCSV'
 import KPICards from './KPICards'
 
 function fmtBRL(n) {
   if (n == null || n === 0) return '–'
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
+function fmtBRLSigned(n) {
+  if (n == null) return '–'
+  const s = Math.abs(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  if (n > 0) return '+' + s
+  if (n < 0) return '−' + s
+  return s
+}
 function fmtNum(n) {
   return (n || 0).toLocaleString('pt-BR')
 }
 function fmtPct(n) {
-  return n.toFixed(2).replace('.', ',') + '%'
+  if (n == null) return '–'
+  return n.toFixed(1).replace('.', ',') + '%'
 }
 
-export default function OverviewTab({ events, onSelectEvent }) {
+export default function OverviewTab({ events, onSelectEvent, onFetchAllUserEvents }) {
+  const [recurrence, setRecurrence] = useState(null)
+  const [loadingRec, setLoadingRec] = useState(false)
+  const [recError, setRecError] = useState('')
+
+  // ordem cronológica (mais antigo → mais novo)
+  const chronological = [...events].sort((a, b) => {
+    const da = new Date(a.periodo_inicio || a.criado_em)
+    const db = new Date(b.periodo_inicio || b.criado_em)
+    return da - db
+  })
+
+  useEffect(() => {
+    let cancelled = false
+    if (!events.length || !onFetchAllUserEvents) { setRecurrence(null); return }
+    setLoadingRec(true)
+    setRecError('')
+    onFetchAllUserEvents()
+      .then((rows) => {
+        if (cancelled) return
+        setRecurrence(recurrenceAnalysis(chronological, rows))
+      })
+      .catch((e) => { if (!cancelled) setRecError(e.message) })
+      .finally(() => { if (!cancelled) setLoadingRec(false) })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events, onFetchAllUserEvents])
+
   if (!events.length) {
     return <div className="empty-state tab-content">Nenhum evento salvo ainda.</div>
   }
 
-  // ── Consolidado ────────────────────────────────────────────────────────────
-  const totalUsuarios  = events.reduce((s, e) => s + (e.usuarios_unicos || 0), 0)
+  // ── Consolidado ──
+  const totalUsuarios   = events.reduce((s, e) => s + (e.usuarios_unicos || 0), 0)
   const totalGanhadores = events.reduce((s, e) => s + (e.ganhadores || 0), 0)
-  const totalPayout    = events.reduce((s, e) => s + (e.payout || 0), 0)
-  const mediaGeral     = events.reduce((s, e) => s + (e.media_acertos || 0), 0) / events.length
-  const premioMax      = Math.max(...events.map((e) => e.premio_max || 0))
-  const thresholds     = events.map((e) => e.win_threshold).filter((v) => v != null)
+  const totalPayout     = events.reduce((s, e) => s + (e.payout || 0), 0)
+  const mediaGeral      = events.reduce((s, e) => s + (e.media_acertos || 0), 0) / events.length
+  const premioMax       = Math.max(...events.map((e) => e.premio_max || 0))
+  const thresholds      = events.map((e) => e.win_threshold).filter((v) => v != null)
 
   const consolidated = {
     totalEntradas: events.reduce((s, e) => s + (e.total_entradas || 0), 0),
@@ -36,20 +74,27 @@ export default function OverviewTab({ events, onSelectEvent }) {
     noQuestions: 8,
   }
 
-  // ── Métricas por evento ────────────────────────────────────────────────────
-  const rows = events.map((ev) => {
-    const taxa = ev.usuarios_unicos > 0 ? (ev.ganhadores / ev.usuarios_unicos) * 100 : 0
-    const premioPorGanhador = ev.ganhadores > 0 ? ev.payout / ev.ganhadores : null
-    const modelo = ev.prize_model ? PRIZE_MODELS[ev.prize_model]?.label : null
-    return { ev, taxa, premioPorGanhador, modelo }
-  })
+  // ── Custo previsto × real ──
+  const costs = costAnalysis(events)
+  const totalPrevisto = costs.reduce((s, c) => s + (c.previsto || 0), 0)
+  const totalReal = costs.reduce((s, c) => s + (c.real || 0), 0)
+  const algumModelo = costs.some((c) => c.previsto != null)
 
-  // máximos para destacar
-  const maxUsuarios  = Math.max(...rows.map((r) => r.ev.usuarios_unicos || 0))
-  const maxGanhadores = Math.max(...rows.map((r) => r.ev.ganhadores || 0))
-  const maxTaxa      = Math.max(...rows.map((r) => r.taxa))
-  const maxPayout    = Math.max(...rows.map((r) => r.ev.payout || 0))
-  const maxMedia     = Math.max(...rows.map((r) => r.ev.media_acertos || 0))
+  // ── Comparativo ──
+  const maxUsuarios = Math.max(...events.map((e) => e.usuarios_unicos || 0))
+  const maxGanhadores = Math.max(...events.map((e) => e.ganhadores || 0))
+  const maxPayout = Math.max(...events.map((e) => e.payout || 0))
+  const maxMedia = Math.max(...events.map((e) => e.media_acertos || 0))
+
+  function exportFieis() {
+    if (!recurrence) return
+    downloadCSV(
+      'jogadores_fieis.csv',
+      recurrence.fieis,
+      ['user_external_id', 'eventos_jogados', 'vitorias'],
+      ['ID do Usuário', 'Eventos Jogados', 'Vitórias']
+    )
+  }
 
   return (
     <div className="tab-content">
@@ -60,7 +105,119 @@ export default function OverviewTab({ events, onSelectEvent }) {
         <KPICards meta={consolidated} />
       </div>
 
-      {/* Tabela comparativa */}
+      {/* ── Recorrência ── */}
+      <div className="overview-section">
+        <h3 className="section-title">Recorrência de jogadores</h3>
+        {loadingRec && <p className="section-hint">Carregando dados de todos os eventos…</p>}
+        {recError && <p className="section-hint" style={{ color: 'var(--danger)' }}>Erro: {recError}</p>}
+
+        {recurrence && (
+          <>
+            <div className="mini-kpi-row">
+              <div className="mini-kpi">
+                <span className="mini-kpi-val">{fmtNum(recurrence.distinctUsers)}</span>
+                <span className="mini-kpi-lbl">jogadores distintos (todos eventos)</span>
+              </div>
+              <div className="mini-kpi">
+                <span className="mini-kpi-val kpi-accent">{fmtNum(recurrence.recorrentesGlobais)}</span>
+                <span className="mini-kpi-lbl">jogaram 2+ eventos</span>
+              </div>
+              <div className="mini-kpi">
+                <span className="mini-kpi-val kpi-accent">{fmtPct(recurrence.pctRecorrencia)}</span>
+                <span className="mini-kpi-lbl">taxa de recorrência</span>
+              </div>
+              <div className="mini-kpi">
+                <button className="btn-outline" onClick={exportFieis}>↓ Exportar fiéis</button>
+              </div>
+            </div>
+
+            {events.length > 1 && (
+              <div className="table-wrap" style={{ marginTop: 14 }}>
+                <table className="cmp-table">
+                  <thead>
+                    <tr>
+                      <th>Evento</th>
+                      <th style={{ textAlign: 'right' }}>Jogadores</th>
+                      <th style={{ textAlign: 'right' }}>Novos</th>
+                      <th style={{ textAlign: 'right' }}>Recorrentes</th>
+                      <th style={{ textAlign: 'right' }}>Retenção do anterior</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recurrence.timeline.map(({ ev, jogadores, novos, recorrentes, retencao }) => (
+                      <tr key={ev.id} className="row-clickable" onClick={() => onSelectEvent(ev.id)}>
+                        <td className="td-name">{ev.nome}</td>
+                        <td className="td-right">{fmtNum(jogadores)}</td>
+                        <td className="td-right">{fmtNum(novos)}</td>
+                        <td className="td-right">{fmtNum(recorrentes)}</td>
+                        <td className="td-right" style={{ color: retencao != null ? 'var(--green)' : '#444' }}>
+                          {retencao != null ? fmtPct(retencao) : '–'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* ── Custo previsto × real ── */}
+      {algumModelo && (
+        <div className="overview-section">
+          <h3 className="section-title">Custo: previsto × real</h3>
+          <p className="section-hint">
+            Previsto = soma dos prêmios das faixas premiadas no modelo. Real = payout do CSV.
+          </p>
+          <div className="table-wrap">
+            <table className="cmp-table">
+              <thead>
+                <tr>
+                  <th>Evento</th>
+                  <th>Modelo</th>
+                  <th style={{ textAlign: 'right' }}>Previsto</th>
+                  <th style={{ textAlign: 'right' }}>Real</th>
+                  <th style={{ textAlign: 'right' }}>Variação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {costs.map(({ ev, modelo, previsto, real, variacao }) => (
+                  <tr key={ev.id} className="row-clickable" onClick={() => onSelectEvent(ev.id)}>
+                    <td className="td-name">{ev.nome}</td>
+                    <td className="td-modelo">{modelo || <span style={{ color: '#444' }}>sem modelo</span>}</td>
+                    <td className="td-right">{previsto != null ? fmtBRL(previsto) : '–'}</td>
+                    <td className="td-right">{fmtBRL(real)}</td>
+                    <td className="td-right" style={{
+                      color: variacao == null ? '#444' : variacao > 0 ? 'var(--danger)' : 'var(--green)',
+                      fontWeight: variacao ? 600 : 400,
+                    }}>
+                      {variacao != null ? fmtBRLSigned(variacao) : '–'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              {events.length > 1 && (
+                <tfoot>
+                  <tr className="row-total">
+                    <td><strong>Total</strong></td>
+                    <td className="td-modelo">–</td>
+                    <td className="td-right"><strong>{fmtBRL(totalPrevisto)}</strong></td>
+                    <td className="td-right"><strong>{fmtBRL(totalReal)}</strong></td>
+                    <td className="td-right" style={{
+                      color: (totalReal - totalPrevisto) > 0 ? 'var(--danger)' : 'var(--green)', fontWeight: 700,
+                    }}>
+                      {fmtBRLSigned(totalReal - totalPrevisto)}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── Comparativo geral ── */}
       <div className="overview-section">
         <h3 className="section-title">Comparativo por evento</h3>
         <p className="section-hint">Clique num evento para abri-lo. Valores em verde são os maiores da coluna.</p>
@@ -72,67 +229,40 @@ export default function OverviewTab({ events, onSelectEvent }) {
                 <th>Período</th>
                 <th style={{ textAlign: 'right' }}>Usuários</th>
                 <th style={{ textAlign: 'right' }}>Ganhadores</th>
-                <th>Taxa (%)</th>
                 <th style={{ textAlign: 'right' }}>Corte</th>
                 <th style={{ textAlign: 'right' }}>Média acertos</th>
                 <th style={{ textAlign: 'right' }}>Payout</th>
                 <th style={{ textAlign: 'right' }}>Prêmio/ganhador</th>
-                <th>Modelo</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ ev, taxa, premioPorGanhador, modelo }) => (
-                <tr key={ev.id} className="row-clickable" onClick={() => onSelectEvent(ev.id)}>
-                  <td className="td-name">{ev.nome}</td>
-                  <td className="td-periodo">{ev.periodo_label || '–'}</td>
-                  <td className={`td-right${ev.usuarios_unicos === maxUsuarios ? ' td-best' : ''}`}>
-                    {fmtNum(ev.usuarios_unicos)}
-                  </td>
-                  <td className={`td-right${ev.ganhadores === maxGanhadores && maxGanhadores > 0 ? ' td-best' : ''}`}>
-                    {ev.ganhadores}
-                  </td>
-                  <td className="td-taxa">
-                    <div className="taxa-wrap">
-                      <span className={taxa === maxTaxa && maxTaxa > 0 ? 'td-best' : ''}>
-                        {fmtPct(taxa)}
-                      </span>
-                      <div className="taxa-bar-bg">
-                        <div
-                          className="taxa-bar-fill"
-                          style={{ width: maxTaxa > 0 ? `${(taxa / maxTaxa) * 100}%` : '0%' }}
-                        />
-                      </div>
-                    </div>
-                  </td>
-                  <td className="td-right">{ev.win_threshold != null ? `${ev.win_threshold}+` : '–'}</td>
-                  <td className={`td-right${ev.media_acertos === maxMedia ? ' td-best' : ''}`}>
-                    {(ev.media_acertos || 0).toFixed(2)}
-                  </td>
-                  <td className={`td-right${ev.payout === maxPayout && maxPayout > 0 ? ' td-best' : ''}`}>
-                    {fmtBRL(ev.payout)}
-                  </td>
-                  <td className="td-right">{fmtBRL(premioPorGanhador)}</td>
-                  <td className="td-modelo">{modelo || <span style={{ color: '#444' }}>–</span>}</td>
-                </tr>
-              ))}
+              {events.map((ev) => {
+                const premioPorGanhador = ev.ganhadores > 0 ? ev.payout / ev.ganhadores : null
+                return (
+                  <tr key={ev.id} className="row-clickable" onClick={() => onSelectEvent(ev.id)}>
+                    <td className="td-name">{ev.nome}</td>
+                    <td className="td-periodo">{ev.periodo_label || '–'}</td>
+                    <td className={`td-right${ev.usuarios_unicos === maxUsuarios ? ' td-best' : ''}`}>{fmtNum(ev.usuarios_unicos)}</td>
+                    <td className={`td-right${ev.ganhadores === maxGanhadores && maxGanhadores > 0 ? ' td-best' : ''}`}>{ev.ganhadores}</td>
+                    <td className="td-right">{ev.win_threshold != null ? `${ev.win_threshold}+` : '–'}</td>
+                    <td className={`td-right${ev.media_acertos === maxMedia ? ' td-best' : ''}`}>{(ev.media_acertos || 0).toFixed(2)}</td>
+                    <td className={`td-right${ev.payout === maxPayout && maxPayout > 0 ? ' td-best' : ''}`}>{fmtBRL(ev.payout)}</td>
+                    <td className="td-right">{fmtBRL(premioPorGanhador)}</td>
+                  </tr>
+                )
+              })}
             </tbody>
             {events.length > 1 && (
               <tfoot>
                 <tr className="row-total">
                   <td><strong>Total</strong></td>
-                  <td className="td-periodo" style={{ color: '#555' }}>{events.length} eventos</td>
+                  <td className="td-periodo">{events.length} eventos</td>
                   <td className="td-right"><strong>{fmtNum(totalUsuarios)}</strong></td>
                   <td className="td-right"><strong>{totalGanhadores}</strong></td>
-                  <td className="td-taxa">
-                    <span style={{ fontSize: 12, color: '#888' }}>
-                      {totalUsuarios > 0 ? fmtPct((totalGanhadores / totalUsuarios) * 100) : '–'}
-                    </span>
-                  </td>
                   <td className="td-right">–</td>
                   <td className="td-right"><strong>{mediaGeral.toFixed(2)}</strong></td>
                   <td className="td-right"><strong>{fmtBRL(totalPayout)}</strong></td>
                   <td className="td-right">{totalGanhadores > 0 ? fmtBRL(totalPayout / totalGanhadores) : '–'}</td>
-                  <td>–</td>
                 </tr>
               </tfoot>
             )}
