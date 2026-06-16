@@ -305,11 +305,26 @@ body {
   padding: 18px;
 }
 
+.dist-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
 .dist-title {
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
-  margin-bottom: 14px;
+  margin-bottom: 0;
+}
+
+.prize-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .table-wrap { overflow-x: auto; }
@@ -379,6 +394,35 @@ body {
   text-align: right;
   white-space: nowrap;
   color: var(--text-dim);
+}
+
+.td-download {
+  text-align: center;
+  width: 36px;
+}
+
+.btn-dl {
+  background: none;
+  border: 1px solid var(--border-light);
+  color: var(--text-muted);
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  transition: border-color 0.15s, color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+.btn-dl:hover { border-color: var(--green); color: var(--green); }
+
+.row-total td {
+  padding: 10px 10px;
+  border-top: 1px solid var(--border);
+  border-bottom: none;
 }
 
 /* ── Drop zone (empty state) ── */

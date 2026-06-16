@@ -1,13 +1,15 @@
 import { useState, useRef } from 'react'
 import { parseCSV } from '../lib/parseCSV'
+import { PRIZE_MODELS } from '../lib/prizeModels'
 import KPICards from './KPICards'
 import DistributionTable from './DistributionTable'
 
-export default function EventTab({ events, onSave, onDelete, highlightId, onClearHighlight }) {
+export default function EventTab({ events, onSave, onDelete, onFetchEntries, highlightId }) {
   const [parsed, setParsed] = useState(null)
   const [selectedId, setSelectedId] = useState(highlightId || '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [prizeModelKey, setPrizeModelKey] = useState('')
   const fileRef = useRef()
 
   const selectedEvent = events.find((e) => e.id === selectedId)
@@ -52,6 +54,11 @@ export default function EventTab({ events, onSave, onDelete, highlightId, onClea
     }
   }
 
+  async function handleFetchEntries(acertos) {
+    if (!selectedId) return []
+    return onFetchEntries(selectedId, acertos)
+  }
+
   const meta = parsed
     ? parsed.meta
     : selectedEvent
@@ -69,13 +76,7 @@ export default function EventTab({ events, onSave, onDelete, highlightId, onClea
       }
     : null
 
-  // Label do dropdown
-  const dropdownLabel = parsed
-    ? `Evento — ${parsed.meta.periodoLabel} (não salvo)`
-    : selectedEvent
-    ? selectedEvent.nome
-    : '— Selecionar evento —'
-
+  const prizeModel = prizeModelKey ? PRIZE_MODELS[prizeModelKey] : null
   const isSaved = !parsed && !!selectedEvent
 
   return (
@@ -108,10 +109,7 @@ export default function EventTab({ events, onSave, onDelete, highlightId, onClea
             </button>
           )}
 
-          <button
-            className="btn-outline"
-            onClick={() => fileRef.current.click()}
-          >
+          <button className="btn-outline" onClick={() => fileRef.current.click()}>
             Subir CSV
           </button>
           <input
@@ -123,7 +121,10 @@ export default function EventTab({ events, onSave, onDelete, highlightId, onClea
           />
 
           {(selectedId || parsed) && (
-            <button className="btn-outline btn-outline-danger" onClick={selectedId ? handleDelete : () => setParsed(null)}>
+            <button
+              className="btn-outline btn-outline-danger"
+              onClick={selectedId ? handleDelete : () => setParsed(null)}
+            >
               Excluir
             </button>
           )}
@@ -135,16 +136,36 @@ export default function EventTab({ events, onSave, onDelete, highlightId, onClea
         </div>
       </div>
 
-      {/* Conteúdo */}
       {meta ? (
         <>
           <KPICards meta={meta} />
+
           <div className="dist-section">
-            <h3 className="dist-title">Usuários por nº de acertos</h3>
+            <div className="dist-header">
+              <h3 className="dist-title">Usuários por nº de acertos</h3>
+              <div className="prize-selector">
+                <span className="toolbar-label">Modelo de premiação:</span>
+                <select
+                  className="toolbar-select"
+                  value={prizeModelKey}
+                  onChange={(e) => setPrizeModelKey(e.target.value)}
+                  style={{ minWidth: 180 }}
+                >
+                  <option value="">— Sem modelo —</option>
+                  {Object.entries(PRIZE_MODELS).map(([key, m]) => (
+                    <option key={key} value={key}>{m.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             <DistributionTable
               dist={meta.dist}
               winThreshold={meta.winThreshold}
               totalUsers={meta.usuariosUnicos}
+              prizeModel={prizeModel}
+              localEntries={parsed ? parsed.entries : null}
+              onFetchEntries={selectedId ? handleFetchEntries : null}
             />
           </div>
         </>

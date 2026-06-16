@@ -5,7 +5,7 @@ import { useEvents } from './hooks/useEvents'
 
 export default function App() {
   const [tab, setTab] = useState('event')
-  const { events, loading, connected, saveEvent, deleteEvent } = useEvents()
+  const { events, loading, connected, saveEvent, deleteEvent, fetchEntries } = useEvents()
   const [highlightId, setHighlightId] = useState(null)
 
   function handleSelectFromOverview(id) {
@@ -51,6 +51,7 @@ export default function App() {
           events={events}
           onSave={saveEvent}
           onDelete={deleteEvent}
+          onFetchEntries={fetchEntries}
           highlightId={highlightId}
           onClearHighlight={() => setHighlightId(null)}
         />

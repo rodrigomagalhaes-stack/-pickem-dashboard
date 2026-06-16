@@ -83,5 +83,17 @@ export function useEvents() {
     await fetchEvents()
   }, [fetchEvents])
 
-  return { events, loading, connected, fetchEvents, saveEvent, deleteEvent }
+  const fetchEntries = useCallback(async (eventoId, acertos = null) => {
+    if (!supabase) throw new Error('Supabase não configurado')
+    let query = supabase
+      .from('pickem_entradas')
+      .select('user_external_id, acertos, status, premio, data_aposta')
+      .eq('evento_id', eventoId)
+    if (acertos != null) query = query.eq('acertos', acertos)
+    const { data, error } = await query
+    if (error) throw error
+    return data || []
+  }, [])
+
+  return { events, loading, connected, fetchEvents, saveEvent, deleteEvent, fetchEntries }
 }
