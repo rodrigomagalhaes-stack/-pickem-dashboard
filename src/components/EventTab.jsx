@@ -1,19 +1,23 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { parseCSV } from '../lib/parseCSV'
 import { PRIZE_MODELS } from '../lib/prizeModels'
 import KPICards from './KPICards'
 import DistributionTable from './DistributionTable'
 
-export default function EventTab({ events, onSave, onDelete, onFetchEntries, highlightId }) {
+export default function EventTab({ events, onSave, onDelete, onFetchEntries, onLoadConfig, onSaveConfig, highlightId }) {
   const [parsed, setParsed] = useState(null)
   const [selectedId, setSelectedId] = useState(highlightId || '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [prizeModelKey, setPrizeModelKey] = useState(() => localStorage.getItem('prizeModel') || '')
+  const [prizeModelKey, setPrizeModelKey] = useState('')
+
+  useEffect(() => {
+    onLoadConfig('prize_model').then((val) => { if (val) setPrizeModelKey(val) })
+  }, [onLoadConfig])
 
   function handlePrizeModel(key) {
     setPrizeModelKey(key)
-    localStorage.setItem('prizeModel', key)
+    onSaveConfig('prize_model', key)
   }
   const fileRef = useRef()
 

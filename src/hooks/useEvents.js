@@ -95,5 +95,16 @@ export function useEvents() {
     return data || []
   }, [])
 
-  return { events, loading, connected, fetchEvents, saveEvent, deleteEvent, fetchEntries }
+  const loadConfig = useCallback(async (key) => {
+    if (!supabase) return null
+    const { data } = await supabase.from('pickem_config').select('valor').eq('id', key).single()
+    return data?.valor ?? null
+  }, [])
+
+  const saveConfig = useCallback(async (key, valor) => {
+    if (!supabase) return
+    await supabase.from('pickem_config').upsert({ id: key, valor })
+  }, [])
+
+  return { events, loading, connected, fetchEvents, saveEvent, deleteEvent, fetchEntries, loadConfig, saveConfig }
 }
