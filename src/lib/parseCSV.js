@@ -40,7 +40,7 @@ export function processRows(rawRows) {
   const totalEntradas = rawRows.length
   const uniqueUsers = [...new Set(rows.map((r) => r['User External ID']))].length
 
-  const noQuestions = Math.max(...rows.map((r) => parseInt(r['No. Questions']) || 8))
+  const noQuestions = rows.length > 0 ? Math.max(...rows.map((r) => parseInt(r['No. Questions']) || 8)) : 8
 
   const entries = rows.map((r) => {
     const acertos = r['Correct Picks'] !== '' && r['Correct Picks'] != null

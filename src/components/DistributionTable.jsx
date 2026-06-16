@@ -107,7 +107,7 @@ export default function DistributionTable({ dist, winThreshold, totalUsers, priz
                     </td>
                   )}
                   <td className="td-download">
-                    {row.count > 0 && (
+                    {row.count > 0 && (localEntries || onFetchEntries) && (
                       <button
                         className="btn-dl"
                         title={`Baixar IDs com ${label}`}

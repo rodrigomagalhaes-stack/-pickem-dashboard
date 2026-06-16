@@ -7,6 +7,10 @@ import DistributionTable from './DistributionTable'
 export default function EventTab({ events, onSave, onDelete, onFetchEntries, onLoadConfig, onSaveConfig, highlightId }) {
   const [parsed, setParsed] = useState(null)
   const [selectedId, setSelectedId] = useState(highlightId || '')
+
+  useEffect(() => {
+    if (highlightId) { setSelectedId(highlightId); setParsed(null) }
+  }, [highlightId])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [prizeModelKey, setPrizeModelKey] = useState('')
