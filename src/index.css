@@ -493,7 +493,34 @@ body {
 }
 .cmp-table tbody tr:last-child td { border-bottom: none; }
 .cmp-table tbody tr:hover { background: var(--bg-hover); cursor: pointer; }
-.td-name { color: var(--green); font-weight: 500; }
+.td-name { color: var(--green); font-weight: 500; white-space: nowrap; }
+.td-right { text-align: right; white-space: nowrap; }
+.td-best { color: var(--green) !important; font-weight: 600; }
+.td-periodo { color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+.td-modelo { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+
+.td-taxa { min-width: 110px; }
+.taxa-wrap { display: flex; flex-direction: column; gap: 4px; }
+.taxa-bar-bg {
+  height: 4px;
+  background: #1e1e1e;
+  border-radius: 2px;
+  overflow: hidden;
+  width: 80px;
+}
+.taxa-bar-fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+  min-width: 2px;
+}
+
+.section-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
 
 /* ── Responsive ── */
 @media (max-width: 700px) {
