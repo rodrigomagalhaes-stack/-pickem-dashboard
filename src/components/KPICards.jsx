@@ -1,31 +1,46 @@
-function fmt(n, decimals = 0) {
-  if (n == null) return '–'
-  return n.toLocaleString('pt-BR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
-}
-
 function fmtBRL(n) {
   if (n == null) return '–'
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
+function fmt(n, dec = 0) {
+  if (n == null) return '–'
+  return n.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec })
+}
+
 export default function KPICards({ meta }) {
   const cards = [
-    { label: 'Usuários únicos', value: fmt(meta.usuariosUnicos) },
-    { label: 'Ganhadores', value: fmt(meta.ganhadores), accent: true },
-    { label: 'Taxa de acerto', value: meta.usuariosUnicos ? `${fmt((meta.ganhadores / meta.usuariosUnicos) * 100, 1)}%` : '–' },
-    { label: 'Média de acertos', value: fmt(meta.mediaAcertos, 2) },
-    { label: 'Payout total', value: fmtBRL(meta.payout) },
-    { label: 'Prêmio máximo', value: fmtBRL(meta.premioMax) },
-    { label: 'Linha de corte', value: meta.winThreshold != null ? `${meta.winThreshold} acertos` : '–', accent: true },
-    { label: 'Período', value: meta.periodoLabel || '–', wide: true },
+    {
+      label: 'USUÁRIOS',
+      value: fmt(meta.usuariosUnicos),
+      sub: `${fmt(meta.totalEntradas ?? meta.usuariosUnicos)} entradas`,
+    },
+    {
+      label: 'GANHADORES',
+      value: fmt(meta.ganhadores),
+      sub: meta.winThreshold != null ? `${meta.winThreshold}+ acertos` : '–',
+      accent: true,
+    },
+    {
+      label: 'MÉDIA DE ACERTOS',
+      value: fmt(meta.mediaAcertos, 2),
+      sub: `de ${meta.noQuestions ?? 8}`,
+    },
+    {
+      label: 'PAYOUT',
+      value: fmtBRL(meta.payout),
+      sub: `prêmio máx ${fmtBRL(meta.premioMax)}`,
+      accent: true,
+    },
   ]
 
   return (
     <div className="kpi-grid">
       {cards.map((c) => (
-        <div key={c.label} className={`kpi-card${c.wide ? ' kpi-wide' : ''}`}>
+        <div key={c.label} className="kpi-card">
           <span className="kpi-label">{c.label}</span>
           <span className={`kpi-value${c.accent ? ' kpi-accent' : ''}`}>{c.value}</span>
+          <span className="kpi-sub">{c.sub}</span>
         </div>
       ))}
     </div>

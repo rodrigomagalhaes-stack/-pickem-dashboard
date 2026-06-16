@@ -8,7 +8,6 @@ export default function EventTab({ events, onSave, onDelete, highlightId, onClea
   const [selectedId, setSelectedId] = useState(highlightId || '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [dragging, setDragging] = useState(false)
   const fileRef = useRef()
 
   const selectedEvent = events.find((e) => e.id === selectedId)
@@ -17,10 +16,10 @@ export default function EventTab({ events, onSave, onDelete, highlightId, onClea
     if (!file) return
     setError('')
     setParsed(null)
+    setSelectedId('')
     try {
       const result = await parseCSV(file)
       setParsed(result)
-      setSelectedId('')
     } catch (e) {
       setError('Erro ao processar CSV: ' + e.message)
     }
@@ -33,7 +32,8 @@ export default function EventTab({ events, onSave, onDelete, highlightId, onClea
     setSaving(true)
     setError('')
     try {
-      await onSave(nome.trim(), parsed.meta, parsed.entries)
+      const ev = await onSave(nome.trim(), parsed.meta, parsed.entries)
+      setSelectedId(ev.id)
       setParsed(null)
     } catch (e) {
       setError('Erro ao salvar: ' + e.message)
@@ -52,7 +52,7 @@ export default function EventTab({ events, onSave, onDelete, highlightId, onClea
     }
   }
 
-  const displayMeta = parsed
+  const meta = parsed
     ? parsed.meta
     : selectedEvent
     ? {
@@ -63,21 +63,57 @@ export default function EventTab({ events, onSave, onDelete, highlightId, onClea
         premioMax: selectedEvent.premio_max,
         winThreshold: selectedEvent.win_threshold,
         periodoLabel: selectedEvent.periodo_label,
+        noQuestions: selectedEvent.dist ? selectedEvent.dist.length - 1 : 8,
+        totalEntradas: selectedEvent.total_entradas,
         dist: selectedEvent.dist,
       }
     : null
 
+  // Label do dropdown
+  const dropdownLabel = parsed
+    ? `Evento — ${parsed.meta.periodoLabel} (não salvo)`
+    : selectedEvent
+    ? selectedEvent.nome
+    : '— Selecionar evento —'
+
+  const isSaved = !parsed && !!selectedEvent
+
   return (
     <div className="tab-content">
-      <div className="row-spaced">
-        {/* Upload */}
-        <div
-          className={`drop-zone${dragging ? ' dragging' : ''}`}
-          onClick={() => fileRef.current.click()}
-          onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={(e) => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files[0]) }}
-        >
+      {error && <div className="error-msg">{error}</div>}
+
+      {/* Toolbar */}
+      <div className="event-toolbar">
+        <div className="toolbar-left">
+          <span className="toolbar-label">Evento:</span>
+          <div className="toolbar-select-wrap">
+            <select
+              value={selectedId}
+              onChange={(e) => { setSelectedId(e.target.value); setParsed(null) }}
+              className="toolbar-select"
+            >
+              {parsed && (
+                <option value="">{`Evento — ${parsed.meta.periodoLabel} (não salvo)`}</option>
+              )}
+              {!parsed && <option value="">— Selecionar evento —</option>}
+              {events.map((ev) => (
+                <option key={ev.id} value={ev.id}>{ev.nome}</option>
+              ))}
+            </select>
+          </div>
+
+          {parsed && (
+            <button className="btn-primary" onClick={handleSave} disabled={saving}>
+              {saving ? 'Salvando…' : 'Salvar'}
+            </button>
+          )}
+
+          <button
+            className="btn-outline"
+            onClick={() => fileRef.current.click()}
+          >
+            Subir CSV
+          </button>
           <input
             ref={fileRef}
             type="file"
@@ -85,55 +121,41 @@ export default function EventTab({ events, onSave, onDelete, highlightId, onClea
             style={{ display: 'none' }}
             onChange={(e) => handleFile(e.target.files[0])}
           />
-          <span>Arraste um CSV ou <u>clique para selecionar</u></span>
+
+          {(selectedId || parsed) && (
+            <button className="btn-outline btn-outline-danger" onClick={selectedId ? handleDelete : () => setParsed(null)}>
+              Excluir
+            </button>
+          )}
         </div>
 
-        {/* Seletor de eventos salvos */}
-        <div className="event-selector">
-          <select
-            value={selectedId}
-            onChange={(e) => { setSelectedId(e.target.value); setParsed(null) }}
-          >
-            <option value="">— Selecionar evento salvo —</option>
-            {events.map((ev) => (
-              <option key={ev.id} value={ev.id}>{ev.nome}</option>
-            ))}
-          </select>
-          {selectedId && (
-            <button className="btn-danger" onClick={handleDelete}>Excluir</button>
-          )}
+        <div className="toolbar-right">
+          {parsed && <span className="tag-local">grava local</span>}
+          {isSaved && <span className="tag-saved">salvo</span>}
         </div>
       </div>
 
-      {error && <div className="error-msg">{error}</div>}
-
-      {parsed && (
-        <div className="parsed-banner">
-          <span>CSV carregado: <strong>{parsed.meta.usuariosUnicos}</strong> usuários únicos (filtrados)</span>
-          <button className="btn-primary" onClick={handleSave} disabled={saving}>
-            {saving ? 'Salvando…' : 'Salvar evento'}
-          </button>
-        </div>
-      )}
-
-      {displayMeta && (
+      {/* Conteúdo */}
+      {meta ? (
         <>
-          <h2 className="section-title">
-            {parsed ? 'Pré-visualização' : selectedEvent?.nome}
-          </h2>
-          <KPICards meta={displayMeta} />
-          <h3 className="section-subtitle">Distribuição de acertos</h3>
-          <DistributionTable
-            dist={displayMeta.dist}
-            winThreshold={displayMeta.winThreshold}
-            totalUsers={displayMeta.usuariosUnicos}
-          />
+          <KPICards meta={meta} />
+          <div className="dist-section">
+            <h3 className="dist-title">Usuários por nº de acertos</h3>
+            <DistributionTable
+              dist={meta.dist}
+              winThreshold={meta.winThreshold}
+              totalUsers={meta.usuariosUnicos}
+            />
+          </div>
         </>
-      )}
-
-      {!displayMeta && (
-        <div className="empty-state">
-          Suba um CSV ou selecione um evento salvo para começar.
+      ) : (
+        <div
+          className="drop-zone-full"
+          onClick={() => fileRef.current.click()}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]) }}
+        >
+          <span>Arraste um CSV ou <u>clique para selecionar</u></span>
         </div>
       )}
     </div>

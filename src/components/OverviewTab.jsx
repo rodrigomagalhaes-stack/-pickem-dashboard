@@ -23,36 +23,39 @@ export default function OverviewTab({ events, onSelectEvent }) {
   const totalGanhadores = events.reduce((s, e) => s + (e.ganhadores || 0), 0)
   const totalPayout = events.reduce((s, e) => s + (e.payout || 0), 0)
   const mediaGeral = events.reduce((s, e) => s + (e.media_acertos || 0), 0) / events.length
+  const premioMax = Math.max(...events.map((e) => e.premio_max || 0))
 
   const aggDist = aggregateDist(events)
-  const aggWinThreshold = Math.min(...events.map((e) => e.win_threshold).filter((v) => v != null))
+  const thresholds = events.map((e) => e.win_threshold).filter((v) => v != null)
+  const aggWinThreshold = thresholds.length ? Math.min(...thresholds) : null
 
   const consolidated = {
+    totalEntradas: events.reduce((s, e) => s + (e.total_entradas || 0), 0),
     usuariosUnicos: totalUsuarios,
     ganhadores: totalGanhadores,
     mediaAcertos: mediaGeral,
     payout: totalPayout,
-    premioMax: Math.max(...events.map((e) => e.premio_max || 0)),
-    winThreshold: isFinite(aggWinThreshold) ? aggWinThreshold : null,
-    periodoLabel: `${events.length} evento(s)`,
+    premioMax,
+    winThreshold: aggWinThreshold,
+    noQuestions: aggDist.length - 1,
     dist: aggDist,
   }
 
   return (
     <div className="tab-content">
-      <h2 className="section-title">Consolidado — todos os eventos</h2>
-      <KPICards meta={consolidated} />
+      <div className="overview-section">
+        <h3 className="section-title">Consolidado — todos os eventos</h3>
+        <KPICards meta={consolidated} />
+        <DistributionTable
+          dist={aggDist}
+          winThreshold={aggWinThreshold}
+          totalUsers={totalUsuarios}
+        />
+      </div>
 
-      <h3 className="section-subtitle">Distribuição agregada</h3>
-      <DistributionTable
-        dist={aggDist}
-        winThreshold={isFinite(aggWinThreshold) ? aggWinThreshold : null}
-        totalUsers={totalUsuarios}
-      />
-
-      <h3 className="section-subtitle">Comparativo por evento</h3>
-      <div className="table-wrap">
-        <table className="dist-table">
+      <div className="overview-section">
+        <h3 className="section-title">Comparativo por evento</h3>
+        <table className="cmp-table">
           <thead>
             <tr>
               <th>Evento</th>
@@ -65,13 +68,9 @@ export default function OverviewTab({ events, onSelectEvent }) {
           </thead>
           <tbody>
             {events.map((ev) => (
-              <tr
-                key={ev.id}
-                className="row-clickable"
-                onClick={() => onSelectEvent(ev.id)}
-              >
-                <td className="td-accent">{ev.nome}</td>
-                <td>{ev.usuarios_unicos}</td>
+              <tr key={ev.id} onClick={() => onSelectEvent(ev.id)}>
+                <td className="td-name">{ev.nome}</td>
+                <td>{(ev.usuarios_unicos || 0).toLocaleString('pt-BR')}</td>
                 <td>{ev.ganhadores}</td>
                 <td>{(ev.media_acertos || 0).toFixed(2)}</td>
                 <td>{fmtBRL(ev.payout)}</td>
