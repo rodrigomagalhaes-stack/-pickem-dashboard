@@ -9,7 +9,12 @@ export default function EventTab({ events, onSave, onDelete, onFetchEntries, hig
   const [selectedId, setSelectedId] = useState(highlightId || '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [prizeModelKey, setPrizeModelKey] = useState('')
+  const [prizeModelKey, setPrizeModelKey] = useState(() => localStorage.getItem('prizeModel') || '')
+
+  function handlePrizeModel(key) {
+    setPrizeModelKey(key)
+    localStorage.setItem('prizeModel', key)
+  }
   const fileRef = useRef()
 
   const selectedEvent = events.find((e) => e.id === selectedId)
@@ -148,7 +153,7 @@ export default function EventTab({ events, onSave, onDelete, onFetchEntries, hig
                 <select
                   className="toolbar-select"
                   value={prizeModelKey}
-                  onChange={(e) => setPrizeModelKey(e.target.value)}
+                  onChange={(e) => handlePrizeModel(e.target.value)}
                   style={{ minWidth: 180 }}
                 >
                   <option value="">— Sem modelo —</option>
