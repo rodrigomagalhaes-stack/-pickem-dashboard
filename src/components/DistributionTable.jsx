@@ -18,30 +18,37 @@ export default function DistributionTable({ dist, winThreshold, totalUsers, priz
       }, 0)
     : 0
 
+  function formatDate(val) {
+    if (!val) return ''
+    const d = new Date(val)
+    if (isNaN(d)) return String(val)
+    return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  }
+
   async function handleDownload(acertos) {
-    let rows = []
+    let raw = []
 
     if (localEntries) {
-      // CSV ainda não salvo — filtrar da memória
-      rows = localEntries
-        .filter((e) => e.acertos === acertos)
-        .map((e) => ({
-          user_external_id: e.user_external_id,
-          acertos: e.acertos,
-          status: e.status,
-          premio: e.premio,
-          data_aposta: e.data_aposta ? new Date(e.data_aposta).toLocaleString('pt-BR') : '',
-        }))
+      raw = localEntries.filter((e) => e.acertos === acertos)
     } else if (onFetchEntries) {
-      rows = await onFetchEntries(acertos)
+      raw = await onFetchEntries(acertos)
     }
 
-    if (!rows.length) { alert('Nenhum registro encontrado.'); return }
+    if (!raw.length) { alert('Nenhum registro encontrado.'); return }
+
+    const rows = raw.map((e) => ({
+      user_external_id: e.user_external_id,
+      acertos: e.acertos ?? '',
+      status: e.status ?? '',
+      premio: e.premio ?? 0,
+      data_aposta: formatDate(e.data_aposta),
+    }))
 
     downloadCSV(
       `acertos_${acertos}.csv`,
       rows,
-      ['user_external_id', 'acertos', 'status', 'premio', 'data_aposta']
+      ['user_external_id', 'acertos', 'status', 'premio', 'data_aposta'],
+      ['ID do Usuário', 'Acertos', 'Status', 'Prêmio (BRL)', 'Data da Aposta']
     )
   }
 
