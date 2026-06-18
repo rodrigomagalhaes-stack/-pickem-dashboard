@@ -1,86 +1,91 @@
 import Papa from 'papaparse'
 
-// ── Datas ────────────────────────────────────────────────────────────────────
-function parseDateBR(str) {
-  // "11/06/2026, 01:31" → Date
-  if (!str) return null
-  const [datePart, timePart] = str.split(', ')
-  if (!datePart) return null
-  const [day, month, year] = datePart.split('/')
-  return new Date(`${year}-${month}-${day}T${timePart || '00:00'}`)
+// ── Resolução de colunas (tolerante a maiúsculas/pontuação/espaços) ──────────
+const FIELD_ALIASES = {
+  userId:       ['user external id', 'pid', 'username', 'user id', 'external id'],
+  date:         ['timestamp', 'entry ts', 'entry timestamp', 'entryts'],
+  noQuestions:  ['no. questions', 'no questions', 'questions'],
+  correctPicks: ['correct picks', 'correct', 'picks'],
+  prize:        ['prize value', 'prize'],
+  status:       ['status'],
+  userTest:     ['user test', 'test'],
+  restricted:   ['restricted'],
 }
 
-function parseDateISO(str) {
-  // "2026-06-14T17:44:57.505Z" → Date
+const norm = (s) => String(s).toLowerCase().replace(/[\s._-]/g, '')
+
+function buildResolver(fields) {
+  const lookup = {}
+  for (const f of fields) lookup[norm(f)] = f
+  const resolved = {}
+  for (const [canon, aliases] of Object.entries(FIELD_ALIASES)) {
+    for (const a of aliases) {
+      const key = norm(a)
+      if (lookup[key]) { resolved[canon] = lookup[key]; break }
+    }
+  }
+  return resolved
+}
+
+// ── Datas (detecta o padrão pelo conteúdo) ───────────────────────────────────
+const MONTHS = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 }
+
+function parseDate(str) {
   if (!str) return null
-  const d = new Date(str)
+  const s = String(str).trim()
+  // DD/MM/AAAA[, HH:MM]
+  let m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:,?\s+(\d{1,2}):(\d{2}))?/)
+  if (m) return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0))
+  // ISO 2026-06-14T17:44:57.505Z
+  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) { const d = new Date(s); return isNaN(d) ? null : d }
+  // MON-DD-AAAA HH:MM:SS
+  m = s.match(/^([A-Za-z]{3})-(\d{1,2})-(\d{4})(?:\s+(\d{1,2}):(\d{2}):(\d{2}))?/)
+  if (m) {
+    const mo = MONTHS[m[1].toLowerCase()]
+    if (mo != null) return new Date(+m[3], mo, +m[2], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0))
+  }
+  const d = new Date(s)
   return isNaN(d) ? null : d
 }
 
-// ── Prêmios ──────────────────────────────────────────────────────────────────
-// Formato v1 (US): "BRL 888.89" → ponto é decimal
-function parsePrizeUS(str) {
+// ── Prêmio (detecta decimal/milhar pelo conteúdo) ────────────────────────────
+// "BRL 888.89" / "BRL 9000.00" → US (ponto decimal)
+// "R$6.000" → BR (ponto milhar) ; "R$6.000,50" → BR (vírgula decimal)
+function parsePrize(str) {
   if (!str) return 0
-  return parseFloat(str.replace(/BRL/i, '').trim()) || 0
-}
-
-// Formato v2 (BR): "R$6.000" → ponto é milhar; "R$6.000,50" → vírgula é decimal
-function parsePrizeBR(str) {
-  if (!str) return 0
-  let s = str.replace(/R\$/i, '').replace(/\s/g, '').trim()
+  let s = String(str).replace(/r\$|brl/gi, '').replace(/\s/g, '').trim()
   if (!s) return 0
   if (s.includes(',')) {
-    // vírgula = decimal → remove pontos de milhar, troca vírgula por ponto
-    s = s.replace(/\./g, '').replace(',', '.')
-  } else {
-    // sem vírgula → pontos são milhar
-    s = s.replace(/\./g, '')
+    s = s.replace(/\./g, '').replace(',', '.')        // vírgula = decimal
+  } else if (/\.\d{3}$/.test(s)) {
+    s = s.replace(/\./g, '')                          // ponto + 3 dígitos = milhar
   }
   return parseFloat(s) || 0
 }
 
-// ── Detecção de formato ──────────────────────────────────────────────────────
-function detectFormat(fields) {
-  if (fields.includes('User External ID')) return 'v1'
-  if (fields.includes('Pid') || fields.includes('Entry ts')) return 'v2'
-  return 'v1'
-}
+const parseBool = (v) => String(v).toLowerCase() === 'true'
 
-// ── Normalização: cada formato → estrutura interna comum ─────────────────────
-function normalizeRows(rawRows, format) {
-  if (format === 'v2') {
-    return rawRows.map((r) => {
-      const cp = r['Correct picks']
-      const acertos = cp !== '' && cp != null ? parseInt(cp) : null
-      const premio = parsePrizeBR(r['Prize'])
-      // Sem coluna Status: deriva. Sem acertos = PENDING; com prêmio = WON; senão LOST.
-      const status = acertos == null ? 'PENDING' : premio > 0 ? 'WON' : 'LOST'
-      return {
-        data_aposta: parseDateISO(r['Entry ts']),
-        user_external_id: r['Pid'] || r['Username'] || r['User ID'],
-        is_test: false,
-        is_restricted: false,
-        status,
-        acertos,
-        premio,
-        noQuestions: parseInt(r['No questions']) || 8,
-      }
-    })
-  }
-
-  // v1
+// ── Normalização: linha bruta → estrutura interna comum ──────────────────────
+function normalizeRows(rawRows, R) {
   return rawRows.map((r) => {
-    const cp = r['Correct Picks']
+    const cp = R.correctPicks ? r[R.correctPicks] : ''
     const acertos = cp !== '' && cp != null ? parseInt(cp) : null
+    const premio = R.prize ? parsePrize(r[R.prize]) : 0
+
+    // Status: usa coluna se existir; senão deriva do prêmio/acertos
+    let status
+    if (R.status && r[R.status]) status = r[R.status]
+    else status = acertos == null ? 'PENDING' : premio > 0 ? 'WON' : 'LOST'
+
     return {
-      data_aposta: parseDateBR(r['Timestamp']),
-      user_external_id: r['User External ID'],
-      is_test: r['User Test']?.toLowerCase() === 'true',
-      is_restricted: r['Restricted']?.toLowerCase() === 'true',
-      status: r['Status'],
+      data_aposta: R.date ? parseDate(r[R.date]) : null,
+      user_external_id: R.userId ? r[R.userId] : null,
+      is_test: R.userTest ? parseBool(r[R.userTest]) : false,
+      is_restricted: R.restricted ? parseBool(r[R.restricted]) : false,
+      status,
       acertos,
-      premio: parsePrizeUS(r['Prize Value']),
-      noQuestions: parseInt(r['No. Questions']) || 8,
+      premio,
+      noQuestions: R.noQuestions ? parseInt(r[R.noQuestions]) || 8 : 8,
     }
   })
 }
@@ -103,8 +108,9 @@ export function parseCSV(file) {
 }
 
 export function processRows(rawRows, fields = []) {
-  const format = detectFormat(fields.length ? fields : Object.keys(rawRows[0] || {}))
-  const allEntries = normalizeRows(rawRows, format)
+  const usableFields = fields.length ? fields : Object.keys(rawRows[0] || {})
+  const R = buildResolver(usableFields)
+  const allEntries = normalizeRows(rawRows, R)
 
   // Filtrar test e restricted
   const entries = allEntries.filter((e) => !e.is_test && !e.is_restricted)
@@ -164,7 +170,6 @@ export function processRows(rawRows, fields = []) {
       periodoLabel,
       dist,
     },
-    // chaves alinhadas com o que saveEvent espera
     entries: entries.map((e) => ({
       data_aposta: e.data_aposta,
       user_external_id: e.user_external_id,
