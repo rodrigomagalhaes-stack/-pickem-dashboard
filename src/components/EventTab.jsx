@@ -5,7 +5,7 @@ import { custoTotalModelo } from '../lib/analytics'
 import KPICards from './KPICards'
 import DistributionTable from './DistributionTable'
 
-export default function EventTab({ events, onSave, onDelete, onFetchEntries, onUpdatePrizeModel, highlightId }) {
+export default function EventTab({ events, onSave, onDelete, onFetchEntries, onUpdatePrizeModel, onRename, highlightId }) {
   const [parsed, setParsed] = useState(null)
   const [selectedId, setSelectedId] = useState(highlightId || '')
 
@@ -57,6 +57,17 @@ export default function EventTab({ events, onSave, onDelete, onFetchEntries, onU
       setError('Erro ao salvar: ' + e.message)
     }
     setSaving(false)
+  }
+
+  async function handleRename() {
+    if (!selectedEvent) return
+    const nome = prompt('Novo nome do evento:', selectedEvent.nome)
+    if (!nome?.trim() || nome.trim() === selectedEvent.nome) return
+    try {
+      await onRename(selectedId, nome.trim())
+    } catch (e) {
+      setError('Erro ao renomear: ' + e.message)
+    }
   }
 
   async function handleDelete() {
@@ -136,6 +147,12 @@ export default function EventTab({ events, onSave, onDelete, onFetchEntries, onU
             style={{ display: 'none' }}
             onChange={(e) => handleFile(e.target.files[0])}
           />
+
+          {selectedId && (
+            <button className="btn-outline" onClick={handleRename}>
+              Renomear
+            </button>
+          )}
 
           {(selectedId || parsed) && (
             <button
