@@ -102,7 +102,7 @@ export default function OverviewTab({ events, onSelectEvent, onFetchAllUserEvent
       {/* KPIs consolidados */}
       <div className="overview-section">
         <h3 className="section-title">Consolidado — {events.length} evento{events.length > 1 ? 's' : ''}</h3>
-        <KPICards meta={consolidated} />
+        <KPICards meta={consolidated} gastoReal={algumModelo ? totalPrevisto : null} />
       </div>
 
       {/* ── Recorrência ── */}

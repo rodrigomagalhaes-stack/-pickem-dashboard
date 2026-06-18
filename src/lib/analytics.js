@@ -1,18 +1,20 @@
 import { PRIZE_MODELS } from './prizeModels'
 
+// Custo total do evento pelo modelo: soma do prêmio de cada faixa que TEVE
+// ganhadores. Retorna null se não houver modelo/distribuição.
+export function custoTotalModelo(dist, prizeModel) {
+  if (!prizeModel || !dist) return null
+  return dist.reduce((sum, row) => {
+    const prize = prizeModel.prizes[row.acertos]
+    return sum + (prize && row.count > 0 ? prize : 0)
+  }, 0)
+}
+
 // ── Custo previsto (modelo) × payout real ────────────────────────────────────
-// Para cada evento com modelo: budget = soma do prêmio de cada faixa que TEVE
-// ganhadores; real = payout do CSV; variação = real − budget.
 export function costAnalysis(events) {
   return events.map((ev) => {
     const model = ev.prize_model ? PRIZE_MODELS[ev.prize_model] : null
-    let previsto = null
-    if (model && ev.dist) {
-      previsto = ev.dist.reduce((sum, row) => {
-        const prize = model.prizes[row.acertos]
-        return sum + (prize && row.count > 0 ? prize : 0)
-      }, 0)
-    }
+    const previsto = custoTotalModelo(ev.dist, model)
     const real = ev.payout || 0
     const variacao = previsto != null ? real - previsto : null
     return { ev, modelo: model?.label || null, previsto, real, variacao }

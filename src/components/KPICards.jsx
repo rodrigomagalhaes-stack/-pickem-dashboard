@@ -8,7 +8,7 @@ function fmt(n, dec = 0) {
   return n.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec })
 }
 
-export default function KPICards({ meta }) {
+export default function KPICards({ meta, gastoReal }) {
   const cards = [
     {
       label: 'USUÁRIOS',
@@ -27,9 +27,9 @@ export default function KPICards({ meta }) {
       sub: `de ${meta.noQuestions ?? 8}`,
     },
     {
-      label: 'PAYOUT',
-      value: fmtBRL(meta.payout),
-      sub: `prêmio máx ${fmtBRL(meta.premioMax)}`,
+      label: 'GASTO REAL',
+      value: gastoReal != null ? fmtBRL(gastoReal) : '–',
+      sub: gastoReal != null ? 'pelo modelo de premiação' : 'selecione um modelo',
       accent: true,
     },
   ]

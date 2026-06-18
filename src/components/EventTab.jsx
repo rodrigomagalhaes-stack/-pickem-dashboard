@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { parseCSV } from '../lib/parseCSV'
 import { PRIZE_MODELS } from '../lib/prizeModels'
+import { custoTotalModelo } from '../lib/analytics'
 import KPICards from './KPICards'
 import DistributionTable from './DistributionTable'
 
@@ -92,6 +93,7 @@ export default function EventTab({ events, onSave, onDelete, onFetchEntries, onU
     : null
 
   const prizeModel = prizeModelKey ? PRIZE_MODELS[prizeModelKey] : null
+  const gastoReal = meta ? custoTotalModelo(meta.dist, prizeModel) : null
   const isSaved = !parsed && !!selectedEvent
 
   return (
@@ -153,7 +155,7 @@ export default function EventTab({ events, onSave, onDelete, onFetchEntries, onU
 
       {meta ? (
         <>
-          <KPICards meta={meta} />
+          <KPICards meta={meta} gastoReal={gastoReal} />
 
           <div className="dist-section">
             <div className="dist-header">
