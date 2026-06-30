@@ -135,7 +135,7 @@ export default function EventTab({ events, onSave, onDelete, onFetchEntries, onU
               )}
               {!parsed && <option value="">— Selecionar evento —</option>}
               {events.map((ev) => (
-                <option key={ev.id} value={ev.id}>{ev.nome}</option>
+                <option key={ev.id} value={ev.id}>{ev.pago ? `✓ ${ev.nome}` : ev.nome}</option>
               ))}
             </select>
           </div>
