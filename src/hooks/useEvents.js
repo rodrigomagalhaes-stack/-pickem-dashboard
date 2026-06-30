@@ -139,5 +139,12 @@ export function useEvents() {
     setEvents((prev) => prev.map((e) => e.id === id ? { ...e, pago } : e))
   }, [])
 
-  return { events, loading, connected, fetchEvents, saveEvent, deleteEvent, fetchEntries, fetchAllUserEvents, updateEventPrizeModel, renameEvent, setEventPago }
+  const setEventSemVencedor = useCallback(async (id, semVencedor) => {
+    if (!supabase) throw new Error('Supabase não configurado')
+    const { error } = await supabase.from('pickem_eventos').update({ sem_vencedor: semVencedor }).eq('id', id)
+    if (error) throw error
+    setEvents((prev) => prev.map((e) => e.id === id ? { ...e, sem_vencedor: semVencedor } : e))
+  }, [])
+
+  return { events, loading, connected, fetchEvents, saveEvent, deleteEvent, fetchEntries, fetchAllUserEvents, updateEventPrizeModel, renameEvent, setEventPago, setEventSemVencedor }
 }

@@ -5,7 +5,7 @@ import { custoTotalModelo } from '../lib/analytics'
 import KPICards from './KPICards'
 import DistributionTable from './DistributionTable'
 
-export default function EventTab({ events, onSave, onDelete, onFetchEntries, onUpdatePrizeModel, onRename, onSetPago, highlightId }) {
+export default function EventTab({ events, onSave, onDelete, onFetchEntries, onUpdatePrizeModel, onRename, onSetPago, onSetSemVencedor, highlightId }) {
   const [parsed, setParsed] = useState(null)
   const [selectedId, setSelectedId] = useState(highlightId || '')
 
@@ -90,6 +90,15 @@ export default function EventTab({ events, onSave, onDelete, onFetchEntries, onU
     }
   }
 
+  async function handleToggleSemVencedor() {
+    if (!selectedEvent) return
+    try {
+      await onSetSemVencedor(selectedId, !selectedEvent.sem_vencedor)
+    } catch (e) {
+      setError('Erro ao atualizar status de vencedor: ' + e.message)
+    }
+  }
+
   async function handleFetchEntries(acertos) {
     if (!selectedId) return []
     return onFetchEntries(selectedId, acertos)
@@ -134,9 +143,10 @@ export default function EventTab({ events, onSave, onDelete, onFetchEntries, onU
                 <option value="">{`Evento — ${parsed.meta.periodoLabel} (não salvo)`}</option>
               )}
               {!parsed && <option value="">— Selecionar evento —</option>}
-              {events.map((ev) => (
-                <option key={ev.id} value={ev.id}>{ev.pago ? `✓ ${ev.nome}` : ev.nome}</option>
-              ))}
+              {events.map((ev) => {
+                const prefix = `${ev.pago ? '✓ ' : ''}${ev.sem_vencedor ? '⊘ ' : ''}`
+                return <option key={ev.id} value={ev.id}>{prefix + ev.nome}</option>
+              })}
             </select>
           </div>
 
@@ -172,6 +182,15 @@ export default function EventTab({ events, onSave, onDelete, onFetchEntries, onU
             </button>
           )}
 
+          {selectedId && (
+            <button
+              className={`btn-outline${selectedEvent?.sem_vencedor ? ' btn-outline-warning' : ''}`}
+              onClick={handleToggleSemVencedor}
+            >
+              {selectedEvent?.sem_vencedor ? '⊘ Sem vencedor' : 'Marcar sem vencedor'}
+            </button>
+          )}
+
           {(selectedId || parsed) && (
             <button
               className="btn-outline btn-outline-danger"
@@ -186,6 +205,7 @@ export default function EventTab({ events, onSave, onDelete, onFetchEntries, onU
           {parsed && <span className="tag-local">grava local</span>}
           {isSaved && <span className="tag-saved">salvo</span>}
           {isSaved && selectedEvent?.pago && <span className="tag-paid">pago</span>}
+          {isSaved && selectedEvent?.sem_vencedor && <span className="tag-no-winner">sem vencedor</span>}
         </div>
       </div>
 

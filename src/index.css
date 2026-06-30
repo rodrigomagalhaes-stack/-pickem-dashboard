@@ -13,6 +13,9 @@
   --text-muted: #666;
   --text-dim: #999;
   --danger: #e05252;
+  --warning: #e0a930;
+  --warning-bg: rgba(224,169,48,0.08);
+  --warning-border: rgba(224,169,48,0.25);
   --radius: 6px;
 }
 
@@ -234,6 +237,16 @@ body {
   font-weight: 600;
 }
 
+.tag-no-winner {
+  font-size: 11px;
+  color: var(--warning);
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+
 /* ── Buttons ── */
 .btn-primary {
   background: var(--green);
@@ -275,6 +288,13 @@ body {
   background: var(--green-bg);
 }
 .btn-outline-success:hover { border-color: var(--green); }
+
+.btn-outline-warning {
+  color: var(--warning);
+  border-color: var(--warning-border);
+  background: var(--warning-bg);
+}
+.btn-outline-warning:hover { border-color: var(--warning); }
 
 /* ── KPI grid ── */
 .kpi-grid {
