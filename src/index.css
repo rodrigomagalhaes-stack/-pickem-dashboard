@@ -224,6 +224,16 @@ body {
   border-radius: 20px;
 }
 
+.tag-paid {
+  font-size: 11px;
+  color: var(--green);
+  background: var(--green-bg);
+  border: 1px solid var(--green-border);
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+
 /* ── Buttons ── */
 .btn-primary {
   background: var(--green);
@@ -258,6 +268,13 @@ body {
   border-color: rgba(224,82,82,0.3);
 }
 .btn-outline-danger:hover { border-color: var(--danger); color: var(--danger); background: rgba(224,82,82,0.06); }
+
+.btn-outline-success {
+  color: var(--green);
+  border-color: var(--green-border);
+  background: var(--green-bg);
+}
+.btn-outline-success:hover { border-color: var(--green); }
 
 /* ── KPI grid ── */
 .kpi-grid {

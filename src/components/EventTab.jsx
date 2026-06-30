@@ -5,7 +5,7 @@ import { custoTotalModelo } from '../lib/analytics'
 import KPICards from './KPICards'
 import DistributionTable from './DistributionTable'
 
-export default function EventTab({ events, onSave, onDelete, onFetchEntries, onUpdatePrizeModel, onRename, highlightId }) {
+export default function EventTab({ events, onSave, onDelete, onFetchEntries, onUpdatePrizeModel, onRename, onSetPago, highlightId }) {
   const [parsed, setParsed] = useState(null)
   const [selectedId, setSelectedId] = useState(highlightId || '')
 
@@ -78,6 +78,15 @@ export default function EventTab({ events, onSave, onDelete, onFetchEntries, onU
       setSelectedId('')
     } catch (e) {
       setError('Erro ao excluir: ' + e.message)
+    }
+  }
+
+  async function handleTogglePago() {
+    if (!selectedEvent) return
+    try {
+      await onSetPago(selectedId, !selectedEvent.pago)
+    } catch (e) {
+      setError('Erro ao atualizar pagamento: ' + e.message)
     }
   }
 
@@ -154,6 +163,15 @@ export default function EventTab({ events, onSave, onDelete, onFetchEntries, onU
             </button>
           )}
 
+          {selectedId && (
+            <button
+              className={`btn-outline${selectedEvent?.pago ? ' btn-outline-success' : ''}`}
+              onClick={handleTogglePago}
+            >
+              {selectedEvent?.pago ? '✓ Pago' : 'Marcar como pago'}
+            </button>
+          )}
+
           {(selectedId || parsed) && (
             <button
               className="btn-outline btn-outline-danger"
@@ -167,6 +185,7 @@ export default function EventTab({ events, onSave, onDelete, onFetchEntries, onU
         <div className="toolbar-right">
           {parsed && <span className="tag-local">grava local</span>}
           {isSaved && <span className="tag-saved">salvo</span>}
+          {isSaved && selectedEvent?.pago && <span className="tag-paid">pago</span>}
         </div>
       </div>
 

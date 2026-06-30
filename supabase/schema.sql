@@ -16,6 +16,7 @@ create table if not exists pickem_eventos (
   win_threshold   int,
   premio_max      numeric(14,2) default 0,
   dist            jsonb,          -- [{acertos: 0, count: 12}, ...]
+  pago            boolean default false,
   criado_em       timestamptz not null default now()
 );
 
@@ -45,3 +46,6 @@ create policy "anon_all_entradas" on pickem_entradas
 
 -- índice pra queries por evento
 create index if not exists idx_entradas_evento on pickem_entradas(evento_id);
+
+-- ── Migração: marcar evento como pago (rodar se a tabela já existir) ──────
+alter table pickem_eventos add column if not exists pago boolean default false;
